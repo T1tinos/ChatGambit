@@ -7,4 +7,8 @@
     <Configurations>Debug;Release;Store</Configurations>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="TwitchLib" Version="3.5.3" />
+  </ItemGroup>
+
 </Project>

@@ -5,7 +5,9 @@ using Chess.NET.Netcode;
 using Chess.NET.Shared;
 using Chess.NET.Shared.Model;
 using Chess.NET.Shared.Model.Bot;
+using Chess.NET.Shared.Model.Chat;
 using Chess.NET.Shared.Model.Pieces;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -42,11 +44,15 @@ namespace Chess.NET.Controls
 
         public bool IsMirrored => isMirrored;
 
+        // Gestion du Chat
+        public IChatConnection? ChatConnection { get; private set; }
+        public ChatTurn? ChatTurn { get; private set; }
+
         public ChessBoard()
         {
             InitializeComponent();
             InitializeSquares();
-
+            
             Restart(null);
         }
 
@@ -94,6 +100,22 @@ namespace Chess.NET.Controls
             this.opponent = opponent;
             isInNavigationMode = false;
             canMove = true;
+
+            // Gestion du Chat uniquement contre un bot
+            if (opponent != null)
+            {
+                ChatConnection = new FakeConnection(null, null, null);
+                ChatTurn = new ChatTurn(game, null, ChatConnection);
+                //ChatTurn.OnVoteClosed += OnVoteClosed;
+                ChatTurn.OnVoteClosed += (votes) =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        OnVoteClosed(votes);
+                    });
+                };
+                ChatTurn.StartNewTurn();
+            }
         }
 
         public void SetOnline(Shared.Model.Color pieceColor)
@@ -483,7 +505,138 @@ namespace Chess.NET.Controls
             rotatedBorders.Add(borderKingBlack);
         }
 
-
         #endregion
+
+        private async void MoveInputTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != System.Windows.Input.Key.Return || !canMove)
+                return;
+
+            e.Handled = true;
+            var textBox = (TextBox)sender;
+            string input = textBox.Text.Trim().ToLower();
+
+            // Simulation du chat
+            if (ChatConnection != null)
+            {
+                if (input.Contains(' '))
+                    ((FakeConnection)ChatConnection).SimulateIncomingMessage(input.Split(' ')[0], input.Split(' ')[1]);
+                textBox.Clear();
+                return;
+            }
+
+            try
+            {
+                // Parser le coup (format: e2e4 ou notation algébrique)
+                //var pendingMove = ParseMoveInput(input);
+                var pendingMove = PendingMove.MapUciMoveToGame(input, game.Board);
+                if (pendingMove == null)
+                {
+                    MessageBox.Show("Coup invalide. Format: e2e4", "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Jouer le coup, s'il ne fonctionne pas, on met une erreur
+                if (!await game.MoveAsync(pendingMove))
+                {
+                    MessageBox.Show("Ce coup n'est pas valide.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Si tout se passe bien, on vide la textbox, on rend le board et si c'est en ligne, on notifie le parent
+                textBox.Clear();
+
+                RenderChessBoard(game.Board);
+
+                // Bot Move
+                if (opponent != null)
+                {
+                    await Task.Delay(1000);
+
+                    bool foundValidMove = false;
+                    while (!foundValidMove)
+                    {
+                        if (game.IsGameOver)
+                            return;
+
+                        var next = opponent.Move(game);
+                        if (next == null)
+                            break;
+
+                        foundValidMove = await game.MoveAsync(next);
+                    }
+
+                    RenderChessBoard(game.Board);
+                }
+
+                if (isOnline)
+                {
+                    OnMoveMadeOnline?.Invoke(game.Moves.LastOrDefault()!);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void OnVoteClosed(ConcurrentDictionary<string, string> votes)
+        {
+            string input = votes.Values.FirstOrDefault()?.Trim().ToLower() ?? "";
+
+            try
+            {
+                // Parser le coup (format: e2e4 ou notation algébrique)
+                //var pendingMove = ParseMoveInput(input);
+                var pendingMove = PendingMove.MapUciMoveToGame(input, game.Board);
+                if (pendingMove == null)
+                {
+                    MessageBox.Show("Coup invalide. Format: e2e4", "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Jouer le coup, s'il ne fonctionne pas, on met une erreur
+                if (!await game.MoveAsync(pendingMove))
+                {
+                    MessageBox.Show("Ce coup n'est pas valide.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                RenderChessBoard(game.Board);
+
+                // Bot Move
+                if (opponent != null)
+                {
+                    await Task.Delay(1000);
+
+                    bool foundValidMove = false;
+                    while (!foundValidMove)
+                    {
+                        if (game.IsGameOver)
+                            return;
+
+                        var next = opponent.Move(game);
+                        if (next == null)
+                            break;
+
+                        foundValidMove = await game.MoveAsync(next);
+                    }
+
+                    RenderChessBoard(game.Board);
+                    ChatTurn?.StartNewTurn();
+                }
+
+                if (isOnline)
+                {
+                    OnMoveMadeOnline?.Invoke(game.Moves.LastOrDefault()!);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

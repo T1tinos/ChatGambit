@@ -139,5 +139,46 @@
 
             return new PendingMove(piece, to) { PromotionType = promotionType };
         }
+
+        /// <summary>
+        /// Converts a UCI move notation string to a PendingMove object within the context of the current game.
+        /// Parses the source and destination positions from the UCI format (e.g., "e2e4", "e7e8q"),
+        /// retrieves the piece at the source position, and handles pawn promotion if applicable.
+        /// </summary>
+        /// <param name="uci">The move in UCI notation (4 or 5 characters: source + destination + optional promotion piece).
+        /// Valid promotion characters are: 'q' (Queen), 'r' (Rook), 'b' (Bishop), 'n' (Knight).</param>
+        /// <param name="board">The current board state used to retrieve pieces</param>
+        /// <returns>A PendingMove if the move is valid. Null if no piece exists at the source position, or if the UCI format is incorrect, or if the promotion character is invalid</returns>
+        public static PendingMove? MapUciMoveToGame(string uci, IBoard board)
+        {
+            if (uci.Length < 4)
+                return null;
+
+            // e2e4, e7e8q
+            var from = Position.Parse(uci.Substring(0, 2));
+            var to = Position.Parse(uci.Substring(2, 2));
+
+            var piece = board.GetPiece(from);
+            if (piece == null)
+                return null;
+
+            // Promotion
+            PieceType? promotion = null;
+
+            // Promotion?
+            if (uci.Length == 5)
+            {
+                promotion = uci[4] switch
+                {
+                    'q' => PieceType.Queen,
+                    'r' => PieceType.Rook,
+                    'b' => PieceType.Bishop,
+                    'n' => PieceType.Knight,
+                    _ => null
+                };
+            }
+
+            return new PendingMove(piece, to, promotion);
+        }
     }
 }

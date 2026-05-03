@@ -48,6 +48,19 @@
             <Canvas x:Name="DragCanvas" IsHitTestVisible="False">
                 <Image x:Name="DraggedImage" Visibility="Hidden" RenderOptions.BitmapScalingMode="Fant" />
             </Canvas>
+            <TextBox x:Name="MoveInputTextBox" 
+         Grid.Row="0" 
+         Grid.Column="0" 
+         Grid.ColumnSpan="8"
+         Height="40" 
+         VerticalAlignment="Top" 
+         Margin="10"
+         FontSize="16"
+         Padding="5"
+         KeyDown="MoveInputTextBox_KeyDown"
+         />
+         <!--Watermark="Entrez un coup (ex: e2e4)..." -->
+                     
         </Grid>
     </Border>
 </UserControl>

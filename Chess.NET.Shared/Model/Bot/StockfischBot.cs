@@ -55,14 +55,14 @@ namespace Chess.NET.Shared.Model.Bot
 
         public PendingMove? Move(Game game)
         {
-            // 1️ Position setzen (über Moves!)
+            // 1️ Définir la position (via les coups!)
             var movesUci = string.Join(" ", game.Moves.Select(m => m.ToUci()));
             Send($"position startpos moves {movesUci}");
 
-            // 2️ Engine rechnen lassen
+            // 2️ Laisser le moteur calculer
             Send($"go depth {depth}");
 
-            // 3️ bestmove lesen
+            // 3️ Lire le meilleur coup
             string? line;
             while ((line = _output.ReadLine()) != null)
             {
@@ -71,43 +71,14 @@ namespace Chess.NET.Shared.Model.Bot
                 {
                     var parts = line.Split(' ');
                     if (parts.Length < 2 || parts[1] == "(none)")
-                        return null; // Matt oder Patt
+                        return null; // Échec et mat ou pat
 
-                    string uciMove = parts[1]; // z.B. e2e4
-                    return MapUciMoveToGame(uciMove, game);
+                    string uciMove = parts[1]; // ex. e2e4
+                    return PendingMove.MapUciMoveToGame(uciMove, game.Board);
                 }
             }
 
             return null;
-        }
-
-        private PendingMove? MapUciMoveToGame(string uci, Game game)
-        {
-            // e2e4, e7e8q
-            var from = Position.Parse(uci.Substring(0, 2));
-            var to = Position.Parse(uci.Substring(2, 2));
-
-            var piece = game.Board.GetPiece(from);
-            if (piece == null)
-                return null;
-
-            // Promotion
-            PieceType? promotion = null;
-
-            // Promotion?
-            if (uci.Length == 5)
-            {
-                promotion = uci[4] switch
-                {
-                    'q' => PieceType.Queen,
-                    'r' => PieceType.Rook,
-                    'b' => PieceType.Bishop,
-                    'n' => PieceType.Knight,
-                    _ => null
-                };
-            }
-
-            return new PendingMove(piece, to, promotion);
         }
 
         private void Send(string command)
