@@ -414,6 +414,21 @@ namespace Chess.NET
             await Chessboard.ShowLastMoveAsync();
         }
 
+        private void ChatInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            Chessboard.OnChatMessageReceived(sender, e);
+            //if (e.Key == Key.Enter)
+            //{
+            //    string command = ChatInputTextBox.Text.Trim();
+            //    if (!string.IsNullOrEmpty(command))
+            //    {
+            //        Chessboard.OnChatMessageReceived(command, ChatInputTextBox); // adaptez le nom de la méthode
+            //        ChatInputTextBox.Clear();
+            //    }
+            //    e.Handled = true; // empêche le bip système
+            //}
+        }
+
         private void RefreshPlayerDisplay()
         {
             // TODO: Wenn in NavigationMode muss das auch nochmal aufgerufen werden, aber dann seine Infos von dem "anderen" Game beziehen.

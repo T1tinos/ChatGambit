@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -508,6 +509,11 @@ namespace Chess.NET.Controls
         #endregion
 
         private async void MoveInputTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            OnChatMessageReceived(sender, e);
+        }
+
+        public async void OnChatMessageReceived(object sender, KeyEventArgs e)
         {
             if (e.Key != System.Windows.Input.Key.Return || !canMove)
                 return;
