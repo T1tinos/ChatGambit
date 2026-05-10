@@ -7,7 +7,10 @@ using Chess.NET.Shared.Model;
 using Chess.NET.Shared.Model.Bot;
 using Chess.NET.Shared.Model.Chat;
 using Chess.NET.Shared.Model.Pieces;
+using Chess.NET.Shared.Model.StreamerBot;
+using Chess.NET.WPF.StreamerBot;
 using System.Collections.Concurrent;
+using System.Numerics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -48,6 +51,8 @@ namespace Chess.NET.Controls
         // Gestion du Chat
         public IChatConnection? ChatConnection { get; private set; }
         public ChatTurn? ChatTurn { get; private set; }
+
+        private StreamerBotSpeechEngine _streamerBot = null!;
 
         public ChessBoard()
         {
@@ -114,6 +119,24 @@ namespace Chess.NET.Controls
                     {
                         OnVoteClosed(votes);
                     });
+                };
+                var bank = new Dictionary<StreamerBotEventType, List<string>>
+                {
+                    [StreamerBotEventType.ChatMovePlayed] = new()
+                    {
+                        "Intéressant. Exactement ce que j'espérais.",
+                        "Oh, {Move}. Ma pièce préférée à capturer.",
+                        "Je note ce mouvement dans mes archives."
+                    }
+                };
+                _streamerBot = new StreamerBotSpeechEngine(
+                    tts: new WpfTtsService(),
+                    chat: new TwitchStreamerBotChatService(ChatConnection),
+                    idleTimer: new WpfIdleTimerService(TimeSpan.FromSeconds(20))
+                );
+                ChatTurn.OnVoteClosed += (votes) =>
+                {
+                    StreamerBotEventBus.Emit(StreamerBotEventType.ChatMovePlayed, votes);
                 };
                 ChatTurn.StartNewTurn();
             }
